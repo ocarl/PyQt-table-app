@@ -1,12 +1,12 @@
 import sys
+import os
 from PyQt5.QtWidgets import *
-from xml.etree import ElementTree as ET
 from xml.dom.minidom import *
 from dicttoxml import dicttoxml
 
 
 class App(QWidget):
-    def __init__(self, labels, instrumentList = []):
+    def __init__(self):
         super().__init__()
         self.title = 'Position handler'
         self.left = 300
@@ -14,16 +14,17 @@ class App(QWidget):
         self.width = 300
         self.height = 200
         self.rowCount = 0
-        self.labels = labels
+        self.labels = ['Name', 'Position', 'Currency', 'Issuer', 'Price', 'Acquirer', 'Counterparty', 'Total']
 
-        self.instrumentList = instrumentList
+
+        self.instrumentList = []
 
         self.initUI()
-
+        self.dataLoadable = True
 
     def initUI(self):
         self.setWindowTitle(self.title)
-        self.setGeometry(self.left, self.top, 101*(len(self.labels)+1), self.height)
+        self.setGeometry(self.left, self.top, 101*(len(self.labels)+1)+5, self.height)
 
         self.createBackground()
 
@@ -48,7 +49,7 @@ class App(QWidget):
         self.tableWidget.setRowCount(self.rowCount)
         self.tableWidget.setColumnCount(len(self.labels))
         self.tableWidget.setHorizontalHeaderLabels(self.labels)
-        self.tableWidget.setGeometry(self.left+60, self.top, 90*(len(self.labels)+1), self.height)
+        self.tableWidget.setGeometry(self.left+60, self.top, 90*(len(self.labels)+1)+9, self.height)
         self.tableWidget.move(100, 0)
 
         self.tableWidget.setSortingEnabled(True)
@@ -122,11 +123,19 @@ class App(QWidget):
             for j, text in enumerate(self.labels):
                 self.tableWidget.setItem(i, j, QTableWidgetItem(str(instr[text])))
 
-
     def loadData(self):
-        for i in range(len(self.instrumentList)):
-            self.addRowInTable()
-        self.updateTable()
+        if self.dataLoadable:
+            for dirFile in os.listdir('.'):
+                valList = []
+                if '.xml' in dirFile:
+                    self.addRowInTable()
+                    xmlInfo = parse(dirFile)
+                    for lab in self.labels:
+                        valList.append(xmlInfo.getElementsByTagName(lab)[0].firstChild.data)
+                    self.instrumentList.append(dict(zip(self.labels, valList)))
+
+            self.updateTable()
+            self.dataLoadable = False
 
     def updateTable(self):
         for i, instr in enumerate(self.instrumentList):
@@ -164,11 +173,11 @@ class App(QWidget):
         tradeLayout.addWidget(goBtn)
 
         goBtn.clicked.connect(self.doTrade)
+        goBtn.clicked.connect(self.tradeWindow.close)
 
         self.tradeWindow.show()
 
     def doTrade(self):
-        # trader(self.whichInstrument.activated(0), self.chooseAction.activated(0), self.instrQuant.text)
         self.instrumentList = trader(self.instrumentList, self.whichInstrument.currentText(), self.chooseAction.currentText(), self.instrQuant.text())
         self.updateTable()
 
@@ -209,24 +218,7 @@ def trader(allInstr, instr, action, quant):
 
     return allInstr
 
-
 if __name__ == '__main__':
-    import os
-
-    labels = ['Name', 'Position', 'Currency', 'Issuer', 'Price', 'Acquirer', 'Counterparty', 'Total']
-
-    inputList = []
-
-    for dirFile in os.listdir('.'):
-        valList = []
-        if '.xml' in dirFile:
-            xmlInfo = parse(dirFile)
-            for lab in labels:
-                valList.append(xmlInfo.getElementsByTagName(lab)[0].firstChild.data)
-            inputList.append(dict(zip(labels, valList)))
-
-
-
     app = QApplication(sys.argv)
-    ex = App(labels, inputList)
+    ex = App()
     sys.exit(app.exec_())
