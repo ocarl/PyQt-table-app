@@ -16,7 +16,6 @@ class App(QWidget):
         self.rowCount = 0
         self.labels = ['Name', 'Position', 'Currency', 'Issuer', 'Price', 'Acquirer', 'Counterparty', 'Total']
 
-
         self.instrumentList = []
 
         self.initUI()
@@ -26,25 +25,16 @@ class App(QWidget):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, 101*(len(self.labels)+1)+5, self.height)
 
-        self.createBackground()
+        self.background = QMainWindow()
 
         self.layout = QHBoxLayout()
         self.layout.addWidget(self.background)
         self.setLayout(self.layout)
 
         self.createUI()
-
-        # Add box layout, add table to box layout and add box layout to widget
-
-
-        # Show widget
         self.show()
 
-    def createBackground(self):
-        self.background = QMainWindow()
-
     def createUI(self):
-        # Create table
         self.tableWidget = QTableWidget(self)
         self.tableWidget.setRowCount(self.rowCount)
         self.tableWidget.setColumnCount(len(self.labels))
@@ -55,7 +45,6 @@ class App(QWidget):
         self.tableWidget.setSortingEnabled(True)
 
         self.tableWidget.setAlternatingRowColors(True)
-
 
         self.tableWidget.show()
 
@@ -146,9 +135,9 @@ class App(QWidget):
             self.dataLoadable = False
 
     def updateTable(self):
-        for i, instr in enumerate(self.instrumentList):
-            for j, text in enumerate(self.labels):
-                self.tableWidget.setItem(i, j, QTableWidgetItem(str(instr[text])))
+        for row, instr in enumerate(self.instrumentList):
+            for col, text in enumerate(self.labels):
+                self.tableWidget.setItem(row, col, QTableWidgetItem(str(instr[text])))
 
     def closeEvent(self, event):
         for instr in self.instrumentList:
@@ -159,7 +148,7 @@ class App(QWidget):
     def tradeInstruments(self):
         self.tradeWindow = QWidget()
         self.tradeWindow.setWindowTitle('Trade')
-        self.tradeWindow.setGeometry(300,300,100,30)
+        self.tradeWindow.setGeometry(300, 300, 100, 30)
 
         self.whichInstrument = QComboBox(self.tradeWindow)
         self.chooseAction = QComboBox(self.tradeWindow)
@@ -170,7 +159,8 @@ class App(QWidget):
         self.chooseAction.addItem('Buy')
         self.chooseAction.addItem('Sell')
 
-        self.instrQuant = QLineEdit('How Many?', self.tradeWindow)
+        self.instrQuant = QLineEdit(self.tradeWindow)
+        self.instrQuant.setPlaceholderText('Quantity')
 
         goBtn = QPushButton('Go!', self.tradeWindow)
 
