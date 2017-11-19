@@ -1,9 +1,12 @@
 import sys
 from PyQt5.QtWidgets import *
 from xml.etree import ElementTree as ET
+from xml.dom.minidom import *
+from dicttoxml import dicttoxml
+
 
 class App(QWidget):
-    def __init__(self, instrumentList = []):
+    def __init__(self, labels, instrumentList = []):
         super().__init__()
         self.title = 'Position handler'
         self.left = 300
@@ -11,7 +14,7 @@ class App(QWidget):
         self.width = 300
         self.height = 200
         self.rowCount = 0
-        self.labels = ['Name', 'Position', 'Currency', 'Issuer', 'Price', 'Acquirer', 'Counterparty', 'Total']
+        self.labels = labels
 
         self.instrumentList = instrumentList
 
@@ -59,7 +62,7 @@ class App(QWidget):
 
         self.button1 = QPushButton('Create Instrument', self)
         self.button2 = QPushButton('Trade Instruments', self)
-        self.button3 = QPushButton('C', self)
+        self.button3 = QPushButton('Load Instruments', self)
 
         self.button1.setStyleSheet("background-color:rgb(140,199,66); color: white")
         self.button2.setStyleSheet("background-color:rgb(140,199,66); color: white")
@@ -75,25 +78,7 @@ class App(QWidget):
 
         self.button1.clicked.connect(self.createInstrument)
         self.button2.clicked.connect(self.tradeInstruments)
-        self.button3.clicked.connect(self.on_click)
-
-    def tradeInstruments(self):
-        self.tradeWindow = QWidget()
-        self.tradeWindow.setWindowTitle('Trade')
-        self.tradeWindow.setGeometry(300,300,100,30)
-
-        whichInstrument = QComboBox(self.tradeWindow)
-
-        for instr in self.instrumentList:
-            whichInstrument.addItem(instr['Name'])
-
-        instrQuant = QTextEdit('How Many?', self.tradeWindow)
-
-        tradeLayout = QHBoxLayout(self.tradeWindow)
-        tradeLayout.addWidget(whichInstrument)
-        tradeLayout.addWidget(instrQuant)
-
-        self.tradeWindow.show()
+        self.button3.clicked.connect(self.loadData)
 
     def addRowInTable(self):
         self.rowCount += 1
@@ -138,23 +123,55 @@ class App(QWidget):
                 self.tableWidget.setItem(i, j, QTableWidgetItem(str(instr[text])))
 
 
-    def on_click(self):
-        pass
+    def loadData(self):
+        for i in range(len(self.instrumentList)):
+            self.addRowInTable()
+        self.updateTable()
+
+    def updateTable(self):
+        for i, instr in enumerate(self.instrumentList):
+            for j, text in enumerate(self.labels):
+                self.tableWidget.setItem(i, j, QTableWidgetItem(str(instr[text])))
 
     def closeEvent(self, event):
+        for instr in self.instrumentList:
+            dom = parseString(dicttoxml(instr))
+            with open('{}.xml'.format(instr['Name']), 'w') as fid:
+                dom.writexml(fid)
 
-        root = ET.Element("root")
-        doc = ET.SubElement(root, "doc")
+    def tradeInstruments(self):
+        self.tradeWindow = QWidget()
+        self.tradeWindow.setWindowTitle('Trade')
+        self.tradeWindow.setGeometry(300,300,100,30)
 
-        ET.SubElement(doc, "field1", name="blah").text = "some value1"
-        ET.SubElement(doc, "field2", name="asdfasd").text = "some vlaue2"
+        self.whichInstrument = QComboBox(self.tradeWindow)
+        self.chooseAction = QComboBox(self.tradeWindow)
 
-        tree = ET.ElementTree(root)
-        tree.write("filename.xml")
-        if can_exit:
-            event.accept()  # let the window close
-        else:
-            event.ignore()
+        for instr in self.instrumentList:
+            self.whichInstrument.addItem(instr['Name'])
+
+        self.chooseAction.addItem('Buy')
+        self.chooseAction.addItem('Sell')
+
+        self.instrQuant = QLineEdit('How Many?', self.tradeWindow)
+
+        goBtn = QPushButton('Go!', self.tradeWindow)
+
+        tradeLayout = QHBoxLayout(self.tradeWindow)
+        tradeLayout.addWidget(self.whichInstrument)
+        tradeLayout.addWidget(self.chooseAction)
+        tradeLayout.addWidget(self.instrQuant)
+        tradeLayout.addWidget(goBtn)
+
+        goBtn.clicked.connect(self.doTrade)
+
+        self.tradeWindow.show()
+
+    def doTrade(self):
+        # trader(self.whichInstrument.activated(0), self.chooseAction.activated(0), self.instrQuant.text)
+        self.instrumentList = trader(self.instrumentList, self.whichInstrument.currentText(), self.chooseAction.currentText(), self.instrQuant.text())
+        self.updateTable()
+
 
 def generateInstrument(name, position, currency, issuer, price, acquirer, counterParty):
 
@@ -171,11 +188,45 @@ def generateInstrument(name, position, currency, issuer, price, acquirer, counte
 
     return instrumentDict
 
-def trader():
-    pass
+def trader(allInstr, instr, action, quant):
+
+    currInstr = None
+    currInd = None
+
+    for i, instrInd in enumerate(allInstr):
+        if instrInd['Name'] == instr:
+            currInstr = instrInd
+            currInd = i
+
+    actionDict = {
+        'Buy': lambda x, y: int(x['Position']) + y,
+        'Sell': lambda x, y: int(x['Position']) - y
+    }
+
+    currInstr['Position'] = actionDict[action](currInstr, int(quant))
+
+    allInstr[currInd] = currInstr
+
+    return allInstr
 
 
 if __name__ == '__main__':
+    import os
+
+    labels = ['Name', 'Position', 'Currency', 'Issuer', 'Price', 'Acquirer', 'Counterparty', 'Total']
+
+    inputList = []
+
+    for dirFile in os.listdir('.'):
+        valList = []
+        if '.xml' in dirFile:
+            xmlInfo = parse(dirFile)
+            for lab in labels:
+                valList.append(xmlInfo.getElementsByTagName(lab)[0].firstChild.data)
+            inputList.append(dict(zip(labels, valList)))
+
+
+
     app = QApplication(sys.argv)
-    ex = App()
+    ex = App(labels, inputList)
     sys.exit(app.exec_())
