@@ -196,6 +196,25 @@ class App(QWidget):
         self.updateTable()
 
 
+class Instrument(object):
+    def __init__(self, name, position, currency, issuer, price, acquirer, counterParty):
+        self.name = name
+        self.position     = position
+        self.currency     = currency
+        self.issuer       = issuer
+        self.price        = price
+        self.acquirer     = acquirer
+        self.counterParty = counterParty
+        self.id           = id(self)
+
+    def calcTotal(self):
+        return float(self.price) * int(self.position)
+
+
+def createInstrument(name, position, currency, issuer, price, acquirer, counterParty):
+    return Instrument(name, position, currency, issuer, price, acquirer, counterParty)
+
+
 def generateInstrument(name, position, currency, issuer, price, acquirer, counterParty):
 
     instrumentDict = {}
@@ -210,6 +229,7 @@ def generateInstrument(name, position, currency, issuer, price, acquirer, counte
     instrumentDict['Total'] = float(price)*int(position)
 
     return instrumentDict
+
 
 
 def trader(allInstr, instr, action, quant):
